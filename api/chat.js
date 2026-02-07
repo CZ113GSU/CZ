@@ -1,22 +1,29 @@
-import OpenAI from "openai";
-
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight request
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  // Handle preflight
+  if (req.method === "OPTIONS") return res.status(200).end();
+
+  // Parse JSON body safely
+  let body = {};
+  try {
+    body = req.body;
+    if (typeof body === "string") {
+      body = JSON.parse(body);
+    }
+  } catch (err) {
+    return res.status(400).json({ text: "Invalid JSON" });
   }
 
-  const { prompt, system, history, model, temperature, max_tokens } = req.body || {};
+  const { prompt, system, history, model, temperature, max_tokens } = body;
 
-  if (!prompt) {
-    return res.status(400).json({ text: "No prompt received." });
-  }
+  if (!prompt) return res.status(400).json({ text: "No prompt received." });
 
+  // Initialize OpenAI
+  const OpenAI = require("openai");
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
@@ -32,7 +39,6 @@ export default async function handler(req, res) {
     });
 
     res.status(200).json({ text: response.choices[0].message.content });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ text: "(error generating response)" });
