@@ -1,16 +1,20 @@
 export default async function handler(req, res) {
-
   console.log("METHOD:", req.method);
-  // CORS headers
+
+  // 🔹 CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  // Handle preflight
+
+  // 🔹 Handle preflight request
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  
+  if (req.method !== "POST") {
+    return res.status(405).json({ text: "Method not allowed" });
+  }
+
   try {
     const { prompt, system, history, model, temperature, max_tokens } = req.body || {};
 
@@ -30,6 +34,7 @@ export default async function handler(req, res) {
 
     messages.push({ role: "user", content: prompt });
 
+    // 🔹 Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -46,9 +51,16 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-// 🔹 Add this line to see what OpenAI actually returned
-console.log("OpenAI response:", JSON.stringify(data, null, 2));
-    
+    // 🔹 Log full OpenAI response for debugging
+    console.log("OpenAI response:", JSON.stringify(data, null, 2));
+
+    // 🔹 Handle OpenAI errors gracefully
+    if (data.error) {
+      console.error("OpenAI API error:", data.error);
+      return res.status(200).json({ text: "(OpenAI API error: " + data.error.message + ")" });
+    }
+
+    // 🔹 Return chat content
     return res.status(200).json({
       text: data.choices?.[0]?.message?.content || "(no response)"
     });
